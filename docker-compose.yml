@@ -1,0 +1,133 @@
+# =============================================================================
+# MOEX AI Analyst — service topology
+#
+#   postgres   PostgreSQL 17           (internal only, named volume)
+#   redis      Redis 7                 (internal only, named volume)
+#   api        FastAPI (health/webhook, runs migrations intent)  -> port 8000
+#   bot        Aiogram interactive dispatcher
+#   scheduler  APScheduler ingestion + analysis + alerts (single instance!)
+#
+# Credentials are sourced from `.env` (copy from `.env.example`). The app
+# services additionally override DB/Redis hosts to the in-network service
+# names. The scheduler MUST stay at exactly one replica.
+# =============================================================================
+
+x-app-base: &app-base
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: moex-ai-analyst:latest
+  restart: unless-stopped
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    # Override the localhost defaults from .env with in-network hostnames.
+    DB__HOST: postgres
+    REDIS__HOST: redis
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks:
+    - moexnet
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB__USER:-moex}
+      POSTGRES_PASSWORD: ${DB__PASSWORD:-change-me}
+      POSTGRES_DB: ${DB__NAME:-moex_analyst}
+      # Use scram-sha-256 instead of trust for any host auth.
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - moexnet
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # AOF persistence on; bounded memory with LRU eviction for the cache role.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - "256mb"
+      - --maxmemory-policy
+      - allkeys-lru
+      - --loglevel
+      - warning
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - moexnet
+
+  api:
+    <<: *app-base
+    command: ["moex-api"]
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  bot:
+    <<: *app-base
+    command: ["moex-bot"]
+    healthcheck:
+      # Liveness proxy until the bot exposes a heartbeat: verify the package
+      # and venv import cleanly inside the container.
+      test: ["CMD", "python", "-c", "import moex_analyst"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  scheduler:
+    <<: *app-base
+    command: ["moex-scheduler"]
+    # CRITICAL: never scale beyond 1 — duplicate jobs cause double ingestion
+    # and double broadcasts. The Redis lock is the second line of defense.
+    deploy:
+      replicas: 1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import moex_analyst"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  pgdata:
+    name: moex_pgdata
+  redisdata:
+    name: moex_redisdata
+
+networks:
+  moexnet:
+    name: moex_net
+    driver: bridge

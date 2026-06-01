@@ -1,0 +1,42 @@
+# Keep the build context small and free of secrets.
+
+# VCS / tooling
+.git
+.gitignore
+.github
+.claude
+.vscode
+.idea
+
+# Local virtualenvs / caches
+.venv
+venv
+env
+.uv
+__pycache__
+*.py[cod]
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.coverage
+htmlcov
+
+# Secrets & local env (NEVER ship into the image)
+.env
+.env.*
+!.env.example
+
+# Docker / compose (not needed inside the image)
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Tests & docs not required at runtime
+tests
+docs
+*.md
+!README.md
+
+# OS noise
+.DS_Store
+*.log

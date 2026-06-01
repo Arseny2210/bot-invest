@@ -1,0 +1,210 @@
+[project]
+name = "moex-ai-analyst"
+version = "0.1.0"
+description = "Telegram-based AI market analyst for the Moscow Exchange (MOEX)."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+license = { text = "Proprietary" }
+authors = [{ name = "MOEX AI Analyst" }]
+
+# ---------------------------------------------------------------------------
+# Runtime dependencies
+#
+# Lower bounds are pinned; exact versions are resolved into the committed
+# uv.lock for reproducible builds. Companions not on the original spec list
+# are required for the listed libraries to actually run / are mandated by the
+# approved architecture:
+#   * uvicorn            — ASGI server; FastAPI cannot serve itself
+#   * pydantic-settings  — BaseSettings was split out of Pydantic v2 core
+#   * tenacity           — MOEX ISS retry policy (approved integration design)
+#   * dishka             — async DI container (approved DI approach)
+#
+# NOTE: The MVP is fully deterministic and ships with NO LLM dependency.
+# AI providers arrive in V2 behind the `AnalystNarratorPort` interface; no
+# anthropic / OpenAI / other LLM package is installed yet.
+# ---------------------------------------------------------------------------
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.32",
+    "aiogram>=3.13,<4.0",
+    "sqlalchemy[asyncio]>=2.0.36,<2.1",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "redis[hiredis]>=5.2",
+    "apscheduler>=3.11,<4.0",
+    "pydantic>=2.10,<3.0",
+    "pydantic-settings>=2.7",
+    "loguru>=0.7.2",
+    "httpx>=0.28",
+    "tenacity>=9.0",
+    "dishka>=1.4",
+]
+
+[project.scripts]
+# Console entrypoints for the three processes (modules added in later stages).
+moex-api = "moex_analyst.main:run"
+moex-bot = "moex_analyst.bot_entrypoint:run"
+moex-scheduler = "moex_analyst.scheduler_entrypoint:run"
+
+# ---------------------------------------------------------------------------
+# Dependency groups (PEP 735, native to uv).
+#   `uv sync`              installs runtime + the default `dev` group
+#   `uv sync --only-group test`   installs just the test toolchain (CI)
+#   `uv sync --no-default-groups` installs runtime only (prod image)
+# ---------------------------------------------------------------------------
+[dependency-groups]
+lint = [
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+test = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "respx>=0.21",                  # httpx mocking for MOEX ISS client tests
+    "testcontainers[postgres,redis]>=4.8",
+]
+dev = [
+    { include-group = "lint" },
+    { include-group = "test" },
+]
+
+# ---------------------------------------------------------------------------
+# Build backend — src layout, ships PEP 561 type marker.
+# ---------------------------------------------------------------------------
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/moex_analyst"]
+
+[tool.uv]
+# Prod images install runtime only; dev groups are opt-in.
+default-groups = ["dev"]
+
+# ===========================================================================
+# Ruff — linter + formatter
+# ===========================================================================
+[tool.ruff]
+src = ["src", "tests"]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",      # pycodestyle
+    "F",           # pyflakes
+    "I",           # isort
+    "N",           # pep8-naming
+    "UP",          # pyupgrade
+    "B",           # flake8-bugbear
+    "C4",          # flake8-comprehensions
+    "SIM",         # flake8-simplify
+    "ASYNC",       # flake8-async (blocking calls in async code)
+    "DTZ",         # flake8-datetimez (tz-naive datetime guard)
+    "PT",          # flake8-pytest-style
+    "RUF",         # ruff-specific
+    "TID",         # tidy imports
+    "TCH",         # type-checking import blocks
+    "PL",          # pylint subset
+]
+ignore = [
+    "PLR0913",     # too many arguments — DI constructors legitimately have many
+    "PLR2004",     # magic value — noisy in indicator/threshold math
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["PLR2004", "S101"]    # asserts and magic numbers are fine in tests
+# Aiogram + dishka resolve handler annotations at runtime (get_type_hints), and
+# dishka introspects provider return annotations — these imports must stay at
+# runtime, so the type-checking-block rules (TC00x) are false positives here.
+"src/moex_analyst/presentation/bot/handlers/*.py" = ["TC001", "TC002"]
+"src/moex_analyst/di/providers.py" = ["TC003"]
+# Pydantic models need these imports at runtime for type resolution.
+"src/moex_analyst/domain/analysis/result.py" = ["TC001", "TC003"]
+"src/moex_analyst/domain/market/candle.py" = ["TC001", "TC003"]
+"src/moex_analyst/domain/alerts/dto.py" = ["TC001", "TC003"]
+"src/moex_analyst/infrastructure/moex/dto.py" = ["TC001", "TC003"]
+# Loguru uses {} format specifiers (not %s), so PLE1205 is a false positive.
+"src/moex_analyst/scheduler/*.py" = ["PLE1205"]
+"src/moex_analyst/scheduler_entrypoint.py" = ["PLE1205", "TC003"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["moex_analyst"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.format]
+quote-style = "double"
+line-ending = "lf"
+
+# ===========================================================================
+# MyPy — strict
+# ===========================================================================
+[tool.mypy]
+python_version = "3.13"
+mypy_path = "src"
+packages = ["moex_analyst"]
+plugins = ["pydantic.mypy"]
+
+strict = true
+warn_unreachable = true
+warn_no_return = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_any_generics = true
+disallow_untyped_decorators = true
+extra_checks = true
+no_implicit_reexport = true
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+# Third-party libs without bundled type information.
+module = ["apscheduler.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# ===========================================================================
+# Pytest
+# ===========================================================================
+[tool.pytest.ini_options]
+minversion = "8.0"
+asyncio_mode = "auto"
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+]
+markers = [
+    "unit: pure domain/application tests, no I/O",
+    "integration: requires Postgres/Redis (testcontainers)",
+    "e2e: full bot/scheduler flows",
+]
+filterwarnings = ["error"]
+
+# ===========================================================================
+# Coverage
+# ===========================================================================
+[tool.coverage.run]
+source = ["src/moex_analyst"]
+branch = true
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@(abc\\.)?abstractmethod",
+]

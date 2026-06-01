@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+
+# Virtualenvs / package managers
+.venv/
+venv/
+env/
+.uv/
+uv.lock
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / OS
+.idea/
+*.swp
+.DS_Store
+
+# Runtime
+*.log
+logs/
+
+# Docker volumes (local bind data, if any)
+.data/
+pgdata/
