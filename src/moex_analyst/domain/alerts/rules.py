@@ -134,8 +134,8 @@ def rule_support_breakdown(result: AnalysisResult) -> Alert | None:
         severity=_severity_from_strength(level.strength),
         score=level.strength,
         message=(
-            f"Price {ref:g} broke below support {float(level.price):g} "
-            f"({level.touches} touches, strength {level.strength:.2f})"
+            f"Цена {ref:g} пробила поддержку {float(level.price):g} "
+            f"({level.touches} касаний, надёжность {level.strength:.2f})"
         ),
     )
 
@@ -156,8 +156,8 @@ def rule_resistance_breakout(result: AnalysisResult) -> Alert | None:
         severity=_severity_from_strength(level.strength),
         score=level.strength,
         message=(
-            f"Price {ref:g} broke above resistance {float(level.price):g} "
-            f"({level.touches} touches, strength {level.strength:.2f})"
+            f"Цена {ref:g} пробила сопротивление {float(level.price):g} "
+            f"({level.touches} касаний, надёжность {level.strength:.2f})"
         ),
     )
 
@@ -184,7 +184,7 @@ def rule_trend_change(result: AnalysisResult) -> Alert | None:
             direction=AlertDirection.BEARISH,
             severity=AlertSeverity.WARNING,
             score=min(1.0, abs(trend.score) + 0.25),
-            message="Uptrend losing structure: latest swings turned bearish",
+            message="Восходящий тренд теряет структуру: последние свинги развернулись вниз",
         )
     if trend.direction is TrendDirection.DOWN and bullish and not bearish:
         return _alert(
@@ -193,7 +193,7 @@ def rule_trend_change(result: AnalysisResult) -> Alert | None:
             direction=AlertDirection.BULLISH,
             severity=AlertSeverity.WARNING,
             score=min(1.0, abs(trend.score) + 0.25),
-            message="Downtrend losing structure: latest swings turned bullish",
+            message="Нисходящий тренд теряет структуру: последние свинги развернулись вверх",
         )
     return None
 
@@ -208,7 +208,7 @@ def rule_market_structure_change(result: AnalysisResult) -> Alert | None:
             direction=AlertDirection.BULLISH,
             severity=AlertSeverity.INFO,
             score=0.6,
-            message="Bullish market structure confirmed (higher high + higher low)",
+            message="Бычья рыночная структура подтверждена (higher high + higher low)",
         )
     if s.last_high is StructurePoint.LH and s.last_low is StructurePoint.LL:
         return _alert(
@@ -217,7 +217,7 @@ def rule_market_structure_change(result: AnalysisResult) -> Alert | None:
             direction=AlertDirection.BEARISH,
             severity=AlertSeverity.INFO,
             score=0.6,
-            message="Bearish market structure confirmed (lower high + lower low)",
+            message="Медвежья рыночная структура подтверждена (lower high + lower low)",
         )
     return None
 
@@ -231,10 +231,10 @@ def rule_ema20_cross_ema50(result: AnalysisResult) -> Alert | None:
         return None
     if ema20 > ema50:
         direction = AlertDirection.BULLISH
-        message = f"EMA20 {float(ema20):g} above EMA50 {float(ema50):g} (bullish stack)"
+        message = f"EMA20 {float(ema20):g} выше EMA50 {float(ema50):g} (бычий стек)"
     else:
         direction = AlertDirection.BEARISH
-        message = f"EMA20 {float(ema20):g} below EMA50 {float(ema50):g} (bearish stack)"
+        message = f"EMA20 {float(ema20):g} ниже EMA50 {float(ema50):g} (медвежий стек)"
     return _alert(
         result,
         type_=AlertType.EMA20_CROSS_EMA50,
@@ -255,7 +255,7 @@ def rule_rsi_overbought(result: AnalysisResult) -> Alert | None:
         direction=AlertDirection.BEARISH,
         severity=AlertSeverity.WARNING,
         score=float(min(rsi, Decimal("100")) / Decimal("100")),
-        message=f"RSI14 {float(rsi):g} is overbought (>= {float(RSI_OVERBOUGHT):g})",
+        message=f"RSI14 {float(rsi):g} перекуплен (>= {float(RSI_OVERBOUGHT):g})",
     )
 
 
@@ -269,7 +269,7 @@ def rule_rsi_oversold(result: AnalysisResult) -> Alert | None:
         direction=AlertDirection.BULLISH,
         severity=AlertSeverity.WARNING,
         score=float((Decimal("100") - max(rsi, Decimal("0"))) / Decimal("100")),
-        message=f"RSI14 {float(rsi):g} is oversold (<= {float(RSI_OVERSOLD):g})",
+        message=f"RSI14 {float(rsi):g} перепродан (<= {float(RSI_OVERSOLD):g})",
     )
 
 
@@ -283,7 +283,7 @@ def rule_volume_spike(result: AnalysisResult) -> Alert | None:
         direction=AlertDirection.NEUTRAL,
         severity=AlertSeverity.WARNING,
         score=0.7,
-        message="Volume spike: current volume well above its recent average",
+        message="Всплеск объёма: текущий объём значительно выше среднего",
     )
 
 
@@ -305,8 +305,8 @@ def rule_strong_bullish_signal(result: AnalysisResult) -> Alert | None:
             severity=AlertSeverity.CRITICAL,
             score=probs.bullish,
             message=(
-                f"Strong bullish signal: up-trend (score {trend.score:.2f}) with "
-                f"bullish probability {probs.bullish:.2f}"
+                f"Сильный бычий сигнал: восходящий тренд (оценка {trend.score:.2f}) "
+                f"с вероятностью роста {probs.bullish:.2f}"
             ),
         )
     return None
@@ -329,8 +329,8 @@ def rule_strong_bearish_signal(result: AnalysisResult) -> Alert | None:
             severity=AlertSeverity.CRITICAL,
             score=probs.bearish,
             message=(
-                f"Strong bearish signal: down-trend (score {trend.score:.2f}) with "
-                f"bearish probability {probs.bearish:.2f}"
+                f"Сильный медвежий сигнал: нисходящий тренд (оценка {trend.score:.2f}) "
+                f"с вероятностью снижения {probs.bearish:.2f}"
             ),
         )
     return None

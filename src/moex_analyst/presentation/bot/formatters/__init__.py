@@ -1,10 +1,3 @@
-"""Pure message formatters: application DTOs -> Telegram HTML strings.
-
-No aiogram, no I/O. Each function maps a value object to a ready-to-send HTML
-message body, escaping all dynamic content. These are the layer's unit-tested
-surface.
-"""
-
 from __future__ import annotations
 
 from moex_analyst.presentation.bot.formatters.analysis import (
@@ -20,6 +13,9 @@ from moex_analyst.presentation.bot.formatters.misc import (
     format_help,
     format_start,
 )
+from moex_analyst.presentation.bot.formatters.settings import format_settings
+from moex_analyst.presentation.bot.formatters.signals import format_signals
+from moex_analyst.presentation.bot.formatters.statistics import format_statistics
 from moex_analyst.presentation.bot.formatters.watchlist import format_watchlist
 
 __all__ = [
@@ -29,6 +25,9 @@ __all__ = [
     "format_instrument_analysis",
     "format_market_overview",
     "format_ranking",
+    "format_settings",
+    "format_signals",
     "format_start",
+    "format_statistics",
     "format_watchlist",
 ]

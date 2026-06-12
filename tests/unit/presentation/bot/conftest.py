@@ -30,5 +30,6 @@ def mock_callback() -> MagicMock:
     cb.from_user.id = 12345
     cb.message = MagicMock(spec=Message)
     cb.message.answer = AsyncMock()
+    cb.message.edit_text = AsyncMock()
     cb.answer = AsyncMock()
     return cb

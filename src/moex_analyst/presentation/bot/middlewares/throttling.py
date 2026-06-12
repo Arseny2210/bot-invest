@@ -61,7 +61,7 @@ def _user_id(event: TelegramObject) -> int | None:
 
 
 async def _notify(event: TelegramObject) -> None:
-    notice = "⏳ Too many requests — please slow down a moment."
+    notice = "⏳ Слишком много запросов — пожалуйста, немного замедлитесь."
     if isinstance(event, CallbackQuery):
         await event.answer(notice, show_alert=False)
     elif isinstance(event, Message):

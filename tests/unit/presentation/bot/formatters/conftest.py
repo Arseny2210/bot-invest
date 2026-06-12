@@ -44,7 +44,7 @@ def make_alert(
     type_: AlertType = AlertType.RSI_OVERBOUGHT,
     direction: AlertDirection = AlertDirection.BEARISH,
     severity: AlertSeverity = AlertSeverity.WARNING,
-    message: str = "RSI14 72 is overbought",
+    message: str = "RSI14 72 перекуплен",
     ticker: str = "SNGS",
 ) -> Alert:
     return Alert(
@@ -70,17 +70,25 @@ def make_analysis_result(
     with_indicators: bool = True,
 ) -> AnalysisResult:
     supports = (
-        PriceLevel(kind=LevelKind.SUPPORT, price=Decimal("24.50"), touches=3, strength=0.8),
-    ) if with_levels else ()
+        (PriceLevel(kind=LevelKind.SUPPORT, price=Decimal("24.50"), touches=3, strength=0.8),)
+        if with_levels
+        else ()
+    )
     resistances = (
-        PriceLevel(kind=LevelKind.RESISTANCE, price=Decimal("28.10"), touches=2, strength=0.6),
-    ) if with_levels else ()
-    indicators = IndicatorSnapshot(
-        rsi14=Decimal("72.00"),
-        atr14=Decimal("0.5400"),
-        ema20=Decimal("26.1200"),
-        ema50=Decimal("25.4000"),
-    ) if with_indicators else IndicatorSnapshot()
+        (PriceLevel(kind=LevelKind.RESISTANCE, price=Decimal("28.10"), touches=2, strength=0.6),)
+        if with_levels
+        else ()
+    )
+    indicators = (
+        IndicatorSnapshot(
+            rsi14=Decimal("72.00"),
+            atr14=Decimal("0.5400"),
+            ema20=Decimal("26.1200"),
+            ema50=Decimal("25.4000"),
+        )
+        if with_indicators
+        else IndicatorSnapshot()
+    )
     return AnalysisResult(
         ticker=ticker,
         timeframe=Timeframe.D1,
@@ -88,14 +96,18 @@ def make_analysis_result(
         candles_analysed=120,
         trend=TrendState(direction=direction, strength=TrendStrength.STRONG, score=0.72),
         structure=StructureState(
-            swings=(), last_high=StructurePoint.HH, last_low=StructurePoint.HL,
+            swings=(),
+            last_high=StructurePoint.HH,
+            last_low=StructurePoint.HL,
         ),
         support_levels=supports,
         resistance_levels=resistances,
         volume_condition=VolumeCondition.HIGH,
         indicators=indicators,
         probabilities=ProbabilityDistribution(
-            bullish=bullish, bearish=bearish, sideways=sideways,
+            bullish=bullish,
+            bearish=bearish,
+            sideways=sideways,
         ),
     )
 
@@ -129,15 +141,14 @@ def make_instrument_analysis(
     alerts: tuple[Alert, ...] | None = None,
     instrument: InstrumentDTO | None | object = _UNSET,
     quote: QuoteDTO | None | object = _UNSET,
+    analysis: AnalysisResult | None = None,
 ) -> InstrumentAnalysis:
-    resolved_instrument = (
-        make_instrument_dto(ticker=ticker) if instrument is _UNSET else instrument
-    )
+    resolved_instrument = make_instrument_dto(ticker=ticker) if instrument is _UNSET else instrument
     resolved_quote = make_quote_dto() if quote is _UNSET else quote
     return InstrumentAnalysis(
         ticker=ticker,
         timeframe=Timeframe.D1,
-        analysis=make_analysis_result(ticker=ticker),
+        analysis=analysis if analysis is not None else make_analysis_result(ticker=ticker),
         alerts=alerts if alerts is not None else (make_alert(ticker=ticker),),
         instrument=resolved_instrument,  # type: ignore[arg-type]
         quote=resolved_quote,  # type: ignore[arg-type]

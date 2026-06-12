@@ -119,10 +119,29 @@ ignore = [
 # Aiogram + dishka resolve handler annotations at runtime (get_type_hints), and
 # dishka introspects provider return annotations — these imports must stay at
 # runtime, so the type-checking-block rules (TC00x) are false positives here.
-"src/moex_analyst/presentation/bot/handlers/*.py" = ["TC001", "TC002"]
-"src/moex_analyst/di/providers.py" = ["TC003"]
+"src/moex_analyst/presentation/bot/handlers/*.py" = ["TC001", "TC002", "RUF001"]
+"src/moex_analyst/di/providers.py" = ["TC002", "TC003"]
+# Russian text in formatters legitimately uses Cyrillic chars that RUF001 flags.
+"src/moex_analyst/presentation/bot/formatters/*.py" = ["RUF001"]
+"src/moex_analyst/infrastructure/notifications/formatter.py" = ["RUF001"]
+"src/moex_analyst/domain/alerts/rules.py" = ["RUF001"]
+"src/moex_analyst/infrastructure/moex/errors.py" = ["RUF001"]
+"src/moex_analyst/infrastructure/moex/config.py" = ["RUF001"]
+"src/moex_analyst/infrastructure/moex/transport/client.py" = ["RUF001"]
+"tests/unit/presentation/bot/test_handlers_errors.py" = ["RUF001"]
+"tests/unit/presentation/bot/formatters/test_analysis.py" = ["RUF001"]
+"tests/unit/presentation/bot/formatters/test_statistics.py" = ["RUF001"]
+# SQLAlchemy evaluates Mapped[T] annotations at class creation time, so
+# datetime/Decimal must be runtime imports in model files.
+"src/moex_analyst/infrastructure/db/models/*.py" = ["TC003"]
+# FastAPI resolves lifespan type hints via get_type_hints at runtime.
+"src/moex_analyst/main.py" = ["TC003"]
 # Pydantic models need these imports at runtime for type resolution.
 "src/moex_analyst/domain/analysis/result.py" = ["TC001", "TC003"]
+# Scenarios module has Russian text (en-dashes) and complex deterministic logic.
+"src/moex_analyst/domain/analysis/scenarios.py" = ["RUF001", "PLR0912", "PLR0915"]
+"src/moex_analyst/presentation/bot/formatters/text.py" = ["N802"]
+"src/moex_analyst/presentation/bot/formatters/market.py" = ["PLR0912", "PLR0915"]
 "src/moex_analyst/domain/market/candle.py" = ["TC001", "TC003"]
 "src/moex_analyst/domain/alerts/dto.py" = ["TC001", "TC003"]
 "src/moex_analyst/infrastructure/moex/dto.py" = ["TC001", "TC003"]

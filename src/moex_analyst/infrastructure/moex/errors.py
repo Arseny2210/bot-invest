@@ -39,7 +39,7 @@ class MoexServerError(MoexError):
 
     def __init__(self, status_code: int, message: str | None = None) -> None:
         self.status_code = status_code
-        super().__init__(message or f"MOEX ISS server error: HTTP {status_code}")
+        super().__init__(message or f"Ошибка сервера MOEX ISS: HTTP {status_code}")
 
 
 class MoexRateLimitedError(MoexError):
@@ -47,7 +47,7 @@ class MoexRateLimitedError(MoexError):
 
     def __init__(self, retry_after: float | None = None) -> None:
         self.retry_after = retry_after
-        super().__init__("MOEX ISS rate limited (HTTP 429)")
+        super().__init__("MOEX ISS превышен лимит запросов (HTTP 429)")
 
 
 # --- permanent (not retryable) -----------------------------------------------
@@ -56,14 +56,14 @@ class MoexClientError(MoexError):
 
     def __init__(self, status_code: int, message: str | None = None) -> None:
         self.status_code = status_code
-        super().__init__(message or f"MOEX ISS client error: HTTP {status_code}")
+        super().__init__(message or f"Ошибка клиента MOEX ISS: HTTP {status_code}")
 
 
 class MoexNotFoundError(MoexClientError):
     """The requested security/board does not exist on ISS."""
 
     def __init__(self, message: str | None = None) -> None:
-        super().__init__(404, message or "MOEX ISS resource not found")
+        super().__init__(404, message or "Ресурс MOEX ISS не найден")
 
 
 class MoexResponseError(MoexError):

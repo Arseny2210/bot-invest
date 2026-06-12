@@ -1,5 +1,3 @@
-"""Handlers for /start and /help."""
-
 from __future__ import annotations
 
 from aiogram import Router
@@ -7,7 +5,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
 from moex_analyst.presentation.bot.formatters import format_help, format_start
-from moex_analyst.presentation.bot.keyboards import main_menu_keyboard
+from moex_analyst.presentation.bot.keyboards import back_home_keyboard, main_menu_keyboard
 
 __all__ = ["router"]
 
@@ -22,4 +20,4 @@ async def cmd_start(message: Message) -> None:
 
 @router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
-    await message.answer(format_help(), reply_markup=main_menu_keyboard())
+    await message.answer(format_help(), reply_markup=back_home_keyboard())

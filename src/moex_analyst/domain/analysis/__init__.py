@@ -26,8 +26,18 @@ from moex_analyst.domain.analysis.result import (
     SwingPoint,
     TrendState,
 )
+from moex_analyst.domain.analysis.scenarios import (
+    COMPONENT_WEIGHTS,
+    compute_conclusion,
+    compute_confidence,
+    compute_confidence_breakdown,
+    compute_horizons,
+    compute_risk_reward,
+    compute_scenarios,
+)
 
 __all__ = [
+    "COMPONENT_WEIGHTS",
     "MIN_CANDLES",
     "AnalysisEngine",
     "AnalysisError",
@@ -44,4 +54,10 @@ __all__ = [
     "TrendState",
     "TrendStrength",
     "VolumeCondition",
+    "compute_conclusion",
+    "compute_confidence",
+    "compute_confidence_breakdown",
+    "compute_horizons",
+    "compute_risk_reward",
+    "compute_scenarios",
 ]

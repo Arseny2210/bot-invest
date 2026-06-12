@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+
 from decimal import Decimal
 
 from moex_analyst.domain.alerts.enums import AlertDirection, AlertSeverity
 from moex_analyst.domain.analysis.enums import TrendDirection, VolumeCondition
+from moex_analyst.domain.market.timeframe import Timeframe
 from moex_analyst.presentation.bot.formatters.text import (
     alert_direction_icon,
     alert_severity_icon,
     escape,
     fmt_datetime,
+    fmt_datetime_msk,
     fmt_decimal,
+    fmt_freshness_block,
     fmt_percent,
     fmt_score,
+    is_stale,
     trend_icon,
     volume_label,
 )
@@ -52,7 +57,51 @@ class TestFmtPercentAndScore:
 class TestFmtDatetime:
     def test_utc_format(self) -> None:
         value = datetime(2024, 6, 1, 15, 30, tzinfo=UTC)
-        assert fmt_datetime(value) == "2024-06-01 15:30 UTC"
+        assert fmt_datetime(value) == "01.06.2024 15:30"
+
+
+class TestFmtDatetimeMsk:
+    def test_converts_utc_to_msk_and_labels(self) -> None:
+        # 12:42 UTC -> 15:42 MSK (UTC+3)
+        value = datetime(2026, 6, 2, 12, 42, tzinfo=UTC)
+        assert fmt_datetime_msk(value) == "02.06.2026 15:42 МСК"
+
+    def test_naive_assumed_utc(self) -> None:
+        value = datetime(2026, 6, 2, 12, 42)  # noqa: DTZ001 - intentional naive input
+        assert fmt_datetime_msk(value) == "02.06.2026 15:42 МСК"
+
+    def test_day_rollover_across_midnight(self) -> None:
+        # 22:30 UTC -> 01:30 MSK next day
+        value = datetime(2026, 6, 2, 22, 30, tzinfo=UTC)
+        assert fmt_datetime_msk(value) == "03.06.2026 01:30 МСК"
+
+
+class TestFreshnessBlock:
+    def test_fresh_block_contents(self) -> None:
+        fresh = datetime.now(UTC)
+        block = fmt_freshness_block(fresh, Timeframe.D1)
+        assert "🕒 Последнее обновление:" in block
+        assert "📡 Источник: MOEX ISS" in block
+        assert "🟢 Актуальные данные" in block
+        assert "МСК" in block
+        # No stale warning when fresh.
+        assert "⚠️" not in block
+
+    def test_stale_block_shows_warning_and_refresh_indicator(self) -> None:
+        old = datetime.now(UTC) - timedelta(days=3)
+        block = fmt_freshness_block(old, Timeframe.D1)  # D1 threshold = 1 day
+        assert "🟡 Требуется обновление" in block
+        assert "⚠️ Данные могли устареть." in block
+        assert "🟢 Актуальные данные" not in block
+
+    def test_is_stale_thresholds(self) -> None:
+        now = datetime.now(UTC)
+        assert is_stale(now - timedelta(minutes=25), Timeframe.M15) is True
+        assert is_stale(now - timedelta(minutes=10), Timeframe.M15) is False
+        assert is_stale(now - timedelta(hours=2), Timeframe.H1) is True
+        assert is_stale(now - timedelta(hours=6), Timeframe.H4) is True
+        assert is_stale(now - timedelta(days=8), Timeframe.W1) is True
+        assert is_stale(now - timedelta(days=2), Timeframe.W1) is False
 
 
 class TestIcons:

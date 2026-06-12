@@ -31,13 +31,16 @@ class MarketType(StrEnum):
     SHARES = "shares"
 
 
-# ISS numeric `interval` query values. 60 = 1 hour, 24 = 1 day.
+# ISS numeric `interval` query values. 60 = 1 hour, 24 = 1 day, 7 = 1 week.
 # MOEX ISS has no native 4H interval, so H4 is fetched at 1H (interval 60) and
-# aggregated client-side in the candle service.
+# aggregated client-side in the candle service. W1 is fetched at 1D (interval 24)
+# and aggregated client-side (5 trading days per week).
 _ISS_INTERVAL: dict[Timeframe, int] = {
+    Timeframe.M15: 15,
     Timeframe.H1: 60,
     Timeframe.H4: 60,
     Timeframe.D1: 24,
+    Timeframe.W1: 24,
 }
 
 
@@ -48,11 +51,13 @@ def iss_interval(timeframe: Timeframe) -> int:
 
 @dataclass(frozen=True, slots=True)
 class InstrumentRef:
-    """Static routing facts for one tracked instrument.
+    """Static routing & display facts for one tracked instrument.
 
     ``ticker`` is the platform-facing symbol; ``secid`` is the ISS security id
     (they differ for YAKOVLEV, whose ISS secid is ``IRKT``). ``engine`` /
     ``market`` / ``board`` locate the security within the ISS URL hierarchy.
+    ``display_name_ru`` and ``icon`` are used for user-facing output so that
+    the bot shows human-readable company names rather than bare tickers.
     """
 
     ticker: str
@@ -61,6 +66,8 @@ class InstrumentRef:
     engine: str
     market: str
     board: str
+    display_name_ru: str = ""
+    icon: str = ""
 
     @property
     def candles_path(self) -> str:
@@ -85,15 +92,73 @@ class InstrumentRef:
 
 
 # The fixed set of tracked instruments. Boards/markets verified against the live
-# ISS API. IMOEX is an index (engine=stock, market=index, board=SNDX); the rest
-# are ordinary shares on TQBR. YAKOVLEV trades under ISS secid IRKT.
+# ISS API. IRKT (Яковлев) trades under ISS secid IRKT.
 INSTRUMENT_REGISTRY: dict[str, InstrumentRef] = {
-    "IMOEX": InstrumentRef("IMOEX", "IMOEX", MarketType.INDEX, "stock", "index", "SNDX"),
-    "UWGN": InstrumentRef("UWGN", "UWGN", MarketType.SHARES, "stock", "shares", "TQBR"),
-    "SNGS": InstrumentRef("SNGS", "SNGS", MarketType.SHARES, "stock", "shares", "TQBR"),
-    "SGZH": InstrumentRef("SGZH", "SGZH", MarketType.SHARES, "stock", "shares", "TQBR"),
-    "VTBR": InstrumentRef("VTBR", "VTBR", MarketType.SHARES, "stock", "shares", "TQBR"),
-    "YAKOVLEV": InstrumentRef("YAKOVLEV", "IRKT", MarketType.SHARES, "stock", "shares", "TQBR"),
+    "IMOEX": InstrumentRef(
+        "IMOEX",
+        "IMOEX",
+        MarketType.INDEX,
+        "stock",
+        "index",
+        "SNDX",
+        display_name_ru="Индекс МосБиржи",
+        icon="🏛",
+    ),
+    "UWGN": InstrumentRef(
+        "UWGN",
+        "UWGN",
+        MarketType.SHARES,
+        "stock",
+        "shares",
+        "TQBR",
+        display_name_ru="ОВК",
+        icon="🚂",
+    ),
+    "SNGS": InstrumentRef(
+        "SNGS",
+        "SNGS",
+        MarketType.SHARES,
+        "stock",
+        "shares",
+        "TQBR",
+        display_name_ru="Сургутнефтегаз",
+        icon="⛽",
+    ),
+    "SGZH": InstrumentRef(
+        "SGZH",
+        "SGZH",
+        MarketType.SHARES,
+        "stock",
+        "shares",
+        "TQBR",
+        display_name_ru="Сегежа Групп",
+        icon="🌲",
+    ),
+    "VTBR": InstrumentRef(
+        "VTBR",
+        "VTBR",
+        MarketType.SHARES,
+        "stock",
+        "shares",
+        "TQBR",
+        display_name_ru="ВТБ",
+        icon="🏦",
+    ),
+    "IRKT": InstrumentRef(
+        "IRKT",
+        "IRKT",
+        MarketType.SHARES,
+        "stock",
+        "shares",
+        "TQBR",
+        display_name_ru="Яковлев",
+        icon="✈️",
+    ),
+}
+
+# Historical names that still resolve but are not shown in menus.
+_TICKER_ALIASES: dict[str, str] = {
+    "YAKOVLEV": "IRKT",
 }
 
 
@@ -103,4 +168,6 @@ def resolve_instrument(ticker: str) -> InstrumentRef:
     Raises:
         KeyError: if ``ticker`` is not one of the tracked instruments.
     """
-    return INSTRUMENT_REGISTRY[ticker.strip().upper()]
+    key = ticker.strip().upper()
+    resolved = _TICKER_ALIASES.get(key, key)
+    return INSTRUMENT_REGISTRY[resolved]

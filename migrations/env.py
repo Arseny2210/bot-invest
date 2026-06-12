@@ -20,11 +20,10 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from moex_analyst.core.db_settings import load_database_settings
-from moex_analyst.infrastructure.db.base import Base
 
-# Register model tables on Base.metadata once they exist. Kept importable now
-# so enabling it later is a one-line change.
-# from moex_analyst.infrastructure.db import models  # noqa: F401,ERA001
+# Register model tables on Base.metadata.
+from moex_analyst.infrastructure.db import models  # noqa: F401
+from moex_analyst.infrastructure.db.base import Base
 
 config = context.config
 if config.config_file_name is not None:

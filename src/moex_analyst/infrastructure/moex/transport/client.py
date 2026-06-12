@@ -108,16 +108,16 @@ class MoexHttpClient:
         try:
             response = await self._client.get(path, params=params)
         except httpx.TimeoutException as exc:
-            raise MoexTimeoutError(f"Timeout requesting {path}") from exc
+            raise MoexTimeoutError(f"Таймаут запроса {path}") from exc
         except httpx.TransportError as exc:
-            raise MoexTransportError(f"Transport error requesting {path}: {exc}") from exc
+            raise MoexTransportError(f"Транспортная ошибка запроса {path}: {exc}") from exc
 
         self._raise_for_status(response)
 
         try:
             return response.json()
         except ValueError as exc:
-            raise MoexResponseError(f"ISS returned non-JSON body for {path}") from exc
+            raise MoexResponseError(f"ISS вернул не-JSON тело для {path}") from exc
 
     @staticmethod
     def _raise_for_status(response: httpx.Response) -> None:
@@ -128,7 +128,7 @@ class MoexHttpClient:
             retry_after = _parse_retry_after(response.headers.get("Retry-After"))
             raise MoexRateLimitedError(retry_after)
         if status == 404:
-            raise MoexNotFoundError(f"ISS 404 for {response.request.url}")
+            raise MoexNotFoundError(f"ISS 404 для {response.request.url}")
         if 400 <= status < 500:
             raise MoexClientError(status)
         raise MoexServerError(status)
@@ -147,7 +147,7 @@ def _log_retry(retry_state: RetryCallState) -> None:
     """Structured-log a retry attempt before sleeping."""
     exc = retry_state.outcome.exception() if retry_state.outcome else None
     logger.bind(service="moex").warning(
-        "MOEX ISS request failed (attempt {}), retrying: {}",
+        "MOEX ISS запрос не удался (попытка {}), повтор: {}",
         retry_state.attempt_number,
-        type(exc).__name__ if exc else "unknown",
+        type(exc).__name__ if exc else "неизвестно",
     )

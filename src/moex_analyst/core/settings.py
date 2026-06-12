@@ -40,6 +40,7 @@ class BotSettings(BaseModel):
     """Telegram bot configuration."""
 
     token: SecretStr
+    notification_chat_id: int | None = None
     use_webhook: bool = False
     webhook_base_url: str | None = None
     webhook_path: str = "/telegram/webhook"

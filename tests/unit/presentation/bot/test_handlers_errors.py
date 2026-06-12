@@ -15,14 +15,14 @@ class TestFriendlyError:
     @pytest.mark.parametrize(
         ("exc", "expected_substring"),
         [
-            (TickerNotFoundError("UNKNOWN"), "Unknown ticker"),
-            (InsufficientDataError(required=50, got=10), "Not enough price history"),
-            (InstrumentNotFoundError("SNGS"), "MOEX has no data"),
-            (EmptyDataError("SNGS"), "MOEX returned no data"),
-            (RateLimitError("SNGS"), "rate-limiting"),
-            (DataSourceError("connection failed"), "Couldn't reach MOEX"),
-            (Exception("anything"), "Something went wrong"),
-            (ValueError("bad value"), "Something went wrong"),
+            (TickerNotFoundError("UNKNOWN"), "Тикер не найден"),
+            (InsufficientDataError(required=50, got=10), "Недостаточно истории цен"),
+            (InstrumentNotFoundError("SNGS"), "нет данных"),
+            (EmptyDataError("SNGS"), "не вернул данных"),
+            (RateLimitError("SNGS"), "ограничивает запросы"),
+            (DataSourceError("connection failed"), "Не удалось подключиться"),
+            (Exception("anything"), "Что-то пошло не так"),
+            (ValueError("bad value"), "Что-то пошло не так"),
         ],
     )
     def test_maps_to_expected_message(
@@ -34,9 +34,9 @@ class TestFriendlyError:
         assert expected_substring in result
         assert "⚠️" in result
 
-    def test_ticker_not_found_mentions_tracked_instruments(self) -> None:
+    def test_ticker_not_found_suggests_menu(self) -> None:
         result = friendly_error(TickerNotFoundError("NONEXISTENT"))
-        assert "Tracked instruments" in result
+        assert "меню" in result
 
     def test_error_is_html_formatted(self) -> None:
         result = friendly_error(ValueError("test"))

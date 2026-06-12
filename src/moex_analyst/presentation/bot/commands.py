@@ -1,4 +1,9 @@
-"""The Telegram command menu shown in clients (the ``/`` autocomplete list)."""
+"""Telegram bot menu configuration.
+
+Instead of exposing many slash commands (developer-oriented UX), we register
+only a single menu button that returns users to the root interface.
+Slash commands remain available internally as a fallback.
+"""
 
 from __future__ import annotations
 
@@ -9,18 +14,13 @@ from aiogram.types import BotCommand
 if TYPE_CHECKING:
     from aiogram import Bot
 
-__all__ = ["BOT_COMMANDS", "set_bot_commands"]
+__all__ = ["set_bot_menu"]
 
-BOT_COMMANDS: tuple[BotCommand, ...] = (
-    BotCommand(command="analyze", description="Analyse an instrument (/analyze SNGS)"),
-    BotCommand(command="market", description="Ranked market overview"),
-    BotCommand(command="best", description="Most bullish instruments"),
-    BotCommand(command="worst", description="Most bearish instruments"),
-    BotCommand(command="watchlist", description="Tracked instruments"),
-    BotCommand(command="help", description="Show help"),
+_BOT_COMMANDS: tuple[BotCommand, ...] = (
+    BotCommand(command="start", description="🏠 Главное меню"),
 )
 
 
-async def set_bot_commands(bot: Bot) -> None:
-    """Register the command menu with Telegram."""
-    await bot.set_my_commands(list(BOT_COMMANDS))
+async def set_bot_menu(bot: Bot) -> None:
+    """Register a single menu entry that returns users to the main screen."""
+    await bot.set_my_commands(list(_BOT_COMMANDS))

@@ -11,8 +11,8 @@ class TestCmdStart:
 
         mock_message.answer.assert_awaited_once()
         text = mock_message.answer.call_args[0][0]
-        assert "MOEX market analyst" in text
-        assert "Hi TestUser!" in text
+        assert "MOEX Analyst" in text
+        assert "Привет, TestUser!" in text
 
     async def test_includes_main_menu_keyboard(self, mock_message: MagicMock) -> None:
         await cmd_start(mock_message)
@@ -28,7 +28,7 @@ class TestCmdStart:
         await cmd_start(msg)
 
         text = msg.answer.call_args[0][0]
-        assert "Hi!" in text
+        assert "Привет!" in text
 
 
 class TestCmdHelp:
@@ -37,8 +37,8 @@ class TestCmdHelp:
 
         mock_message.answer.assert_awaited_once()
         text = mock_message.answer.call_args[0][0]
-        assert "Commands" in text
-        assert "/analyze" in text
+        assert "Разделы" in text
+        assert "Анализ акции" in text
 
     async def test_includes_main_menu_keyboard(self, mock_message: MagicMock) -> None:
         await cmd_help(mock_message)

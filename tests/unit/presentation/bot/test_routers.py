@@ -1,6 +1,6 @@
 from aiogram import Router
 
-from moex_analyst.presentation.bot.handlers import analyze, overview, start_help
+from moex_analyst.presentation.bot.handlers import analyze, overview, settings, signals, start_help
 from moex_analyst.presentation.bot.routers import build_root_router
 
 
@@ -26,5 +26,11 @@ class TestBuildRootRouter:
     def test_includes_overview_router(self) -> None:
         assert overview.router in self._root.sub_routers
 
-    def test_has_exactly_three_sub_routers(self) -> None:
-        assert len(list(self._root.sub_routers)) == 3
+    def test_includes_signals_router(self) -> None:
+        assert signals.router in self._root.sub_routers
+
+    def test_includes_settings_router(self) -> None:
+        assert settings.router in self._root.sub_routers
+
+    def test_has_exactly_five_sub_routers(self) -> None:
+        assert len(list(self._root.sub_routers)) == 5

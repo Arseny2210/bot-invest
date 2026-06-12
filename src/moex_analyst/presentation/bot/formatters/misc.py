@@ -1,5 +1,3 @@
-"""Static / templated formatters: start, help and user-facing error messages."""
-
 from __future__ import annotations
 
 from moex_analyst.presentation.bot.formatters.text import escape
@@ -8,32 +6,43 @@ __all__ = ["format_error", "format_help", "format_start"]
 
 
 def format_start(first_name: str | None = None) -> str:
-    """Welcome message shown for ``/start``."""
-    greeting = f"Hi {escape(first_name)}! " if first_name else "Hi! "
+    greeting = f", {escape(first_name)}" if first_name else ""
     return (
-        f"👋 <b>{greeting}I'm the MOEX market analyst.</b>\n\n"
-        "I run a deterministic technical analysis (trend, structure, "
-        "support/resistance, RSI/EMA/ATR) over Moscow Exchange instruments and "
-        "raise actionable alerts.\n\n"
-        "Use the buttons below or send /help to see every command."
+        f"👋 <b>Привет{greeting}!</b>\n\n"
+        "🤖 <b>MOEX Analyst</b>\n\n"
+        "Технический анализ инструментов Московской Биржи:\n"
+        "• 📊 Тренды и рыночная структура\n"
+        "• 📉 Уровни поддержки и сопротивления\n"
+        "• 📐 Индикаторы (RSI, EMA, ATR)\n"
+        "• 🎯 Вероятностный прогноз\n"
+        "• 🚨 Сигналы и оповещения\n\n"
+        "Выберите действие через меню ниже ⬇️"
     )
 
 
 def format_help() -> str:
-    """Command reference shown for ``/help``."""
     return (
-        "🛟 <b>Commands</b>\n\n"
-        "• /analyze &lt;ticker&gt; — full analysis of one instrument "
-        "(e.g. <code>/analyze SNGS</code>, optionally <code>/analyze SNGS 1H</code>)\n"
-        "• /market — ranked overview of all tracked instruments\n"
-        "• /best — most bullish instruments right now\n"
-        "• /worst — most bearish instruments right now\n"
-        "• /watchlist — the instruments I track\n"
-        "• /help — this message\n\n"
-        "<i>Timeframes: 1H, 4H, 1D (default 1D).</i>"
+        "🛟 <b>ПОМОЩЬ</b>\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<b>Разделы</b>\n\n"
+        "📈 <b>Анализ акции</b>\n"
+        "   Выберите инструмент из списка\n\n"
+        "📊 <b>Состояние рынка</b>\n"
+        "   Обзор всех инструментов\n\n"
+        "⭐ <b>Избранное</b>\n"
+        "   Быстрый доступ к инструментам\n\n"
+        "🎯 <b>Сигналы</b>\n"
+        "   Активные оповещения\n\n"
+        "📋 <b>Статистика</b>\n"
+        "   Точность прогнозов\n\n"
+        "⚙️ <b>Настройки</b>\n"
+        "   Параметры бота\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "<b>Таймфреймы</b>\n"
+        "1H — 1 час  |  4H — 4 часа  |  1D — 1 день\n\n"
+        "<i>Выберите нужный раздел через меню ниже.</i>"
     )
 
 
 def format_error(message: str) -> str:
-    """Wrap a user-facing error message (already plain, will be escaped)."""
-    return f"⚠️ {escape(message)}"
+    return f"⚠️ <b>Ошибка</b>\n\n{escape(message)}"

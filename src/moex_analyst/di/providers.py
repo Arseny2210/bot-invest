@@ -1,20 +1,15 @@
-"""Dishka providers — the application's dependency graph.
-
-A single :class:`AppProvider` wires the whole object graph at ``APP`` scope:
-the shared MOEX HTTP client (closed on container shutdown), the three MOEX
-services, the stateless analysis/alert engines, and the use cases that compose
-them. ``Settings`` is supplied as container context at creation time.
-
-All components here are stateless and concurrency-safe, so a single instance of
-each is shared process-wide — which is exactly what ``APP`` scope provides.
-"""
-
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
 from dishka import Provider, Scope, from_context, provide
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+)
 
+from moex_analyst.application.services import ForecastTrackingService
 from moex_analyst.application.use_cases import (
     AnalyzeInstrumentUseCase,
     MarketOverviewUseCase,
@@ -23,6 +18,7 @@ from moex_analyst.application.use_cases import (
 from moex_analyst.core.settings import Settings
 from moex_analyst.domain.alerts import AlertDetector
 from moex_analyst.domain.analysis import AnalysisEngine
+from moex_analyst.infrastructure.db.engine import create_engine, create_session_factory
 from moex_analyst.infrastructure.moex import (
     CandleService,
     InstrumentService,
@@ -93,3 +89,26 @@ class AppProvider(Provider):
     @provide(scope=Scope.APP)
     def watchlist_use_case(self) -> WatchlistUseCase:
         return WatchlistUseCase()
+
+    # --- database -----------------------------------------------------------
+    @provide(scope=Scope.APP)
+    async def db_engine(self, settings: Settings) -> AsyncIterator[AsyncEngine]:
+        engine = create_engine(settings.db)
+        try:
+            yield engine
+        finally:
+            await engine.dispose()
+
+    @provide(scope=Scope.APP)
+    def session_factory(
+        self,
+        engine: AsyncEngine,
+    ) -> async_sessionmaker[AsyncSession]:
+        return create_session_factory(engine)
+
+    @provide(scope=Scope.APP)
+    def forecast_service(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+    ) -> ForecastTrackingService:
+        return ForecastTrackingService(session_factory)

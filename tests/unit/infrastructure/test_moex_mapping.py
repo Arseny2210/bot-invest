@@ -5,8 +5,14 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+import pytest
+
 from moex_analyst.domain.market.candle import Candle, CandleSeries
 from moex_analyst.domain.market.timeframe import Timeframe
+from moex_analyst.infrastructure.moex.config import (
+    INSTRUMENT_REGISTRY,
+    resolve_instrument,
+)
 from moex_analyst.infrastructure.moex.dto import CandleDTO, CandleSeriesDTO
 from moex_analyst.infrastructure.moex.mapping import (
     candle_series_to_domain,
@@ -89,3 +95,34 @@ class TestSeriesMapping:
         domain = candle_series_to_domain(dto)
         assert domain.is_empty
         assert domain.latest is None
+
+
+# ---------------------------------------------------------------------------
+# IRKT / YAKOVLEV mapping
+# ---------------------------------------------------------------------------
+
+
+class TestIrktResolution:
+    def test_irk_resolves_via_direct_key(self) -> None:
+        ref = resolve_instrument("IRKT")
+        assert ref.ticker == "IRKT"
+        assert ref.secid == "IRKT"
+
+    def test_yakovlev_alias_resolves_to_irk(self) -> None:
+        ref = resolve_instrument("YAKOVLEV")
+        assert ref.ticker == "IRKT"
+        assert ref.secid == "IRKT"
+
+    def test_case_insensitive_resolution(self) -> None:
+        ref = resolve_instrument("irkt")
+        assert ref.ticker == "IRKT"
+
+    def test_irk_in_registry(self) -> None:
+        assert "IRKT" in INSTRUMENT_REGISTRY
+
+    def test_no_yakovlev_in_registry(self) -> None:
+        assert "YAKOVLEV" not in INSTRUMENT_REGISTRY
+
+    def test_unknown_ticker_raises_key_error(self) -> None:
+        with pytest.raises(KeyError):
+            resolve_instrument("UNKNOWN")

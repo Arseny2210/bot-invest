@@ -1,9 +1,10 @@
-"""Candle service: fetch 1H / 1D candles and derive 4H by aggregation.
+"""Candle service: fetch native candles and derive aggregated timeframes.
 
-MOEX ISS exposes 1H (interval=60) and 1D (interval=24) candles but no native
-4H. The 4H timeframe is built here by folding consecutive 1H candles into
-4-bar buckets aligned to the hour-of-day. Candle history is fetched with the
-ISS ``start`` cursor to page through results beyond the per-response limit.
+MOEX ISS exposes 1H (interval=60), 1D (interval=24) and 15M (interval=15)
+candles natively. H4 is built by folding 1H bars into 4-bar buckets; W1 is
+built by folding 1D bars into 5-bar weekly buckets. Candle history is fetched
+with the ISS ``start`` cursor to page through results beyond the per-response
+limit.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from moex_analyst.infrastructure.moex.parsing.mapper import map_candle
 from moex_analyst.infrastructure.moex.parsing.parser import parse_block
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
     from datetime import date
 
     from moex_analyst.infrastructure.moex.config import InstrumentRef
@@ -50,14 +51,16 @@ class CandleService:
     ) -> CandleSeriesDTO:
         """Fetch candles for ``ticker`` at ``timeframe``.
 
-        For :attr:`Timeframe.H4` the data is fetched at 1H and aggregated.
-        ``date_from``/``date_till`` are inclusive ISS calendar bounds (Moscow
-        dates); omitting them lets ISS apply its own default window.
+        For aggregated timeframes (:attr:`Timeframe.H4`, :attr:`Timeframe.W1`)
+        the data is fetched at the underlying native interval and folded into
+        bars. ``date_from``/``date_till`` are inclusive ISS calendar bounds
+        (Moscow dates); omitting them lets ISS apply its own default window.
         """
         ref = resolve_instrument(ticker)
         raw = await self._fetch_native(ref, timeframe, date_from, date_till)
 
-        candles = tuple(_aggregate_4h(raw)) if timeframe.is_aggregated else tuple(raw)
+        aggregator = _AGGREGATORS.get(timeframe)
+        candles = tuple(aggregator(raw)) if aggregator else tuple(raw)
         return CandleSeriesDTO(ticker=ref.ticker, timeframe=timeframe, candles=candles)
 
     async def _fetch_native(
@@ -91,12 +94,24 @@ class CandleService:
         return collected
 
 
+def _make_ohlcv(group: Sequence[CandleDTO]) -> CandleDTO:
+    """Merge a candle sequence into one OHLCV bar (open=first, close=last)."""
+    return CandleDTO(
+        begin=group[0].begin,
+        end=group[-1].end,
+        open=group[0].open,
+        high=max(c.high for c in group),
+        low=min(c.low for c in group),
+        close=group[-1].close,
+        volume=sum(c.volume for c in group),
+        value=sum((c.value for c in group), Decimal(0)),
+    )
+
+
 def _aggregate_4h(candles: Sequence[CandleDTO]) -> list[CandleDTO]:
     """Fold 1H candles into 4H bars aligned to 00:00/04:00/08:00... UTC-hour.
 
-    Bars are grouped by ``(date, hour // 4)`` of each candle's ``begin``. Within
-    a bucket: open = first open, close = last close, high = max high, low = min
-    low, volume/value = sums. Buckets are emitted in chronological order. A
+    Bars are grouped by ``(date, hour // 4)`` of each candle's ``begin``. A
     partial trailing bucket (fewer than 4 hours) is still emitted so the latest,
     in-progress 4H bar is available to callers.
     """
@@ -108,20 +123,28 @@ def _aggregate_4h(candles: Sequence[CandleDTO]) -> list[CandleDTO]:
             buckets[key] = []
             order.append(key)
         buckets[key].append(candle)
+    return [_make_ohlcv(buckets[k]) for k in order]
 
-    result: list[CandleDTO] = []
-    for key in order:
-        group = buckets[key]
-        result.append(
-            CandleDTO(
-                begin=group[0].begin,
-                end=group[-1].end,
-                open=group[0].open,
-                high=max(c.high for c in group),
-                low=min(c.low for c in group),
-                close=group[-1].close,
-                volume=sum(c.volume for c in group),
-                value=sum((c.value for c in group), Decimal(0)),
-            )
-        )
-    return result
+
+def _aggregate_weekly(candles: Sequence[CandleDTO]) -> list[CandleDTO]:
+    """Fold D1 candles into weekly bars by ISO week number.
+
+    Groups by ``(iso_year, iso_week)``. A partial week (e.g. current
+    in-progress week) is still emitted.
+    """
+    buckets: dict[tuple[int, int], list[CandleDTO]] = {}
+    order: list[tuple[int, int]] = []
+    for candle in candles:
+        iso = candle.begin.isocalendar()
+        key = (iso[0], iso[1])
+        if key not in buckets:
+            buckets[key] = []
+            order.append(key)
+        buckets[key].append(candle)
+    return [_make_ohlcv(buckets[k]) for k in order]
+
+
+_AGGREGATORS: dict[Timeframe, Callable[[Sequence[CandleDTO]], list[CandleDTO]]] = {
+    Timeframe.H4: _aggregate_4h,
+    Timeframe.W1: _aggregate_weekly,
+}

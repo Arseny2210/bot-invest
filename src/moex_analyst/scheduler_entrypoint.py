@@ -19,9 +19,13 @@ import asyncio
 import signal
 from typing import TYPE_CHECKING, Any
 
+from aiogram import Bot
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from loguru import logger
 
+from moex_analyst.application.services import ForecastTrackingService
 from moex_analyst.application.use_cases import (
     AnalyzeInstrumentUseCase,
     MarketOverviewUseCase,
@@ -29,7 +33,21 @@ from moex_analyst.application.use_cases import (
 from moex_analyst.core.logging import configure_logging
 from moex_analyst.core.settings import get_settings
 from moex_analyst.di import make_container
-from moex_analyst.infrastructure.moex import CandleService
+from moex_analyst.infrastructure.db.engine import create_engine, create_session_factory
+from moex_analyst.infrastructure.moex import CandleService, QuoteService
+from moex_analyst.infrastructure.notifications import (
+    InMemoryDeduplicator,
+    TelegramNotifier,
+)
+from moex_analyst.scheduler.notification_jobs import (
+    notify_alert_generation,
+    notify_daily_summary,
+)
+from moex_analyst.scheduler.persistence_jobs import (
+    evaluate_forecasts,
+    persist_alerts,
+    persist_analyses,
+)
 from moex_analyst.scheduler.registry import get_all_jobs
 from moex_analyst.scheduler.services import (
     alert_generation,
@@ -43,6 +61,9 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from dishka import AsyncContainer
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from moex_analyst.application.ports.notifier import NotifierPort
 
 __all__ = ["run"]
 
@@ -56,6 +77,11 @@ _JOB_FUNCS: dict[str, Callable[..., Awaitable[None]]] = {
     "alert_generation": alert_generation,
     "daily_summary": daily_summary,
     "forecast_validation": forecast_validation,
+    "notify_alert_generation": notify_alert_generation,
+    "notify_daily_summary": notify_daily_summary,
+    "persist_analyses": persist_analyses,
+    "persist_alerts": persist_alerts,
+    "evaluate_forecasts": evaluate_forecasts,
 }
 
 
@@ -87,6 +113,11 @@ def _register_jobs(
     analyze_uc: AnalyzeInstrumentUseCase,
     market_uc: MarketOverviewUseCase,
     candle_svc: CandleService,
+    quote_svc: QuoteService,
+    session_factory: async_sessionmaker[AsyncSession],
+    forecast_service: ForecastTrackingService,
+    notifier: NotifierPort | None = None,
+    notification_chat_id: int | None = None,
 ) -> None:
     """Register every job from the registry with the scheduler.
 
@@ -99,7 +130,30 @@ def _register_jobs(
         "alert_generation": {"analyze_uc": analyze_uc},
         "daily_summary": {"market_uc": market_uc},
         "forecast_validation": {},
+        "persist_analyses": {
+            "analyze_uc": analyze_uc,
+            "session_factory": session_factory,
+        },
+        "persist_alerts": {
+            "analyze_uc": analyze_uc,
+            "session_factory": session_factory,
+        },
+        "evaluate_forecasts": {
+            "forecast_service": forecast_service,
+            "quote_service": quote_svc,
+        },
     }
+    if notifier is not None and notification_chat_id is not None:
+        deps_map["notify_alert_generation"] = {
+            "analyze_uc": analyze_uc,
+            "notifier": notifier,
+            "chat_id": notification_chat_id,
+        }
+        deps_map["notify_daily_summary"] = {
+            "market_uc": market_uc,
+            "notifier": notifier,
+            "chat_id": notification_chat_id,
+        }
 
     for job_def in get_all_jobs():
         func = _JOB_FUNCS[job_def.name]
@@ -128,12 +182,34 @@ async def _main() -> None:
         analyze_uc = await container.get(AnalyzeInstrumentUseCase)
         market_uc = await container.get(MarketOverviewUseCase)
         candle_svc = await container.get(CandleService)
+        quote_svc = await container.get(QuoteService)
+
+        engine = create_engine(settings.db)
+        session_factory = create_session_factory(engine)
+        forecast_service = ForecastTrackingService(session_factory)
+
+        bot: Bot | None = None
+        notifier: NotifierPort | None = None
+        notification_chat_id = settings.bot.notification_chat_id
+        if notification_chat_id is not None:
+            bot = Bot(
+                token=settings.bot.token.get_secret_value(),
+                default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+            )
+            dedup = InMemoryDeduplicator()
+            notifier = TelegramNotifier(bot=bot, deduplicator=dedup)
+            log.info("Notification notifier initialised for chat {}", notification_chat_id)
 
         _register_jobs(
             scheduler,
             analyze_uc=analyze_uc,
             market_uc=market_uc,
             candle_svc=candle_svc,
+            quote_svc=quote_svc,
+            session_factory=session_factory,
+            forecast_service=forecast_service,
+            notifier=notifier,
+            notification_chat_id=notification_chat_id,
         )
 
         # Graceful shutdown: SIGINT (Ctrl+C) and SIGTERM (Docker stop).
@@ -150,6 +226,9 @@ async def _main() -> None:
     finally:
         if scheduler.running:
             scheduler.shutdown(wait=False)
+        if bot is not None:
+            await bot.session.close()
+        await engine.dispose()
         await container.close()
         log.info("Scheduler stopped")
 

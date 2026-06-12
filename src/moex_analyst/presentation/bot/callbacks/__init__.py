@@ -1,35 +1,66 @@
-"""Typed callback-data factories for inline keyboards.
-
-Aiogram ``CallbackData`` subclasses give structured, validated callback payloads
-(``analyze:SNGS``, ``menu:best``) instead of ad-hoc string parsing.
-"""
-
 from __future__ import annotations
-
-from aiogram.filters.callback_data import CallbackData
-
-__all__ = ["AnalyzeCallback", "MenuAction", "MenuCallback"]
 
 from enum import StrEnum
 
+from aiogram.filters.callback_data import CallbackData
+
+__all__ = [
+    "AnalyzeCallback",
+    "AnalyzeTypeCallback",
+    "MarketRefreshCallback",
+    "MenuAction",
+    "MenuCallback",
+    "RefreshAction",
+    "RefreshCallback",
+    "TickerCallback",
+    "TimeframeCallback",
+]
+
 
 class MenuAction(StrEnum):
-    """Actions reachable from the main inline menu."""
-
+    MAIN_MENU = "main_menu"
+    BACK = "back"
     MARKET = "market"
     BEST = "best"
     WORST = "worst"
     WATCHLIST = "watchlist"
     HELP = "help"
+    SIGNALS = "signals"
+    STATISTICS = "statistics"
+    SETTINGS = "settings"
+    ANALYZE = "analyze"
+    CUSTOM_TICKER = "custom_ticker"
 
 
 class MenuCallback(CallbackData, prefix="menu"):
-    """Main-menu button -> a top-level action."""
-
     action: MenuAction
 
 
-class AnalyzeCallback(CallbackData, prefix="analyze"):
-    """Watchlist button -> analyse a specific ticker."""
-
+class TickerCallback(CallbackData, prefix="ticker"):
     ticker: str
+
+
+class TimeframeCallback(CallbackData, prefix="tf"):
+    value: str
+
+
+class AnalyzeTypeCallback(CallbackData, prefix="atype"):
+    type_: str
+
+
+class AnalyzeCallback(CallbackData, prefix="analyze"):
+    ticker: str
+
+
+class RefreshAction(StrEnum):
+    MARKET = "market"
+    SIGNALS = "signals"
+
+
+class RefreshCallback(CallbackData, prefix="refresh"):
+    ticker: str
+    tf_value: str
+
+
+class MarketRefreshCallback(CallbackData, prefix="mkt_refresh"):
+    action: RefreshAction

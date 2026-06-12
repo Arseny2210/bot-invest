@@ -19,7 +19,7 @@ from loguru import logger
 from moex_analyst.core.logging import configure_logging
 from moex_analyst.core.settings import get_settings
 from moex_analyst.di import make_container
-from moex_analyst.presentation.bot.commands import set_bot_commands
+from moex_analyst.presentation.bot.commands import set_bot_menu
 from moex_analyst.presentation.bot.middlewares import (
     LoggingMiddleware,
     ThrottlingMiddleware,
@@ -60,7 +60,7 @@ async def main() -> None:
     setup_dishka(container, dp, auto_inject=True)
 
     try:
-        await set_bot_commands(bot)
+        await set_bot_menu(bot)
         await bot.delete_webhook(drop_pending_updates=True)
         log.info("Bot polling started")
         await dp.start_polling(bot)

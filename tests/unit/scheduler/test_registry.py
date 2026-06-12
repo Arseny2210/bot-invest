@@ -7,16 +7,26 @@ import pytest
 from moex_analyst.scheduler import (
     ALERT_GENERATION,
     DAILY_SUMMARY,
+    EVALUATE_FORECASTS,
     FORECAST_VALIDATION,
     INSTRUMENT_ANALYSIS,
     MARKET_REFRESH,
+    NOTIFY_ALERT_GENERATION,
+    NOTIFY_DAILY_SUMMARY,
+    PERSIST_ALERTS,
+    PERSIST_ANALYSES,
     JobDef,
     alert_generation,
     analyze_all,
     daily_summary,
+    evaluate_forecasts,
     forecast_validation,
     get_all_jobs,
     market_refresh,
+    notify_alert_generation,
+    notify_daily_summary,
+    persist_alerts,
+    persist_analyses,
 )
 
 
@@ -71,11 +81,40 @@ class TestJobConstants:
             "timezone": "Europe/Moscow",
         }
 
+    def test_notify_alert_generation_def(self) -> None:
+        assert NOTIFY_ALERT_GENERATION.name == "notify_alert_generation"
+        assert NOTIFY_ALERT_GENERATION.trigger == "interval"
+        assert NOTIFY_ALERT_GENERATION.kwargs == {"minutes": 15, "jitter": 30}
+
+    def test_notify_daily_summary_def(self) -> None:
+        assert NOTIFY_DAILY_SUMMARY.name == "notify_daily_summary"
+        assert NOTIFY_DAILY_SUMMARY.trigger == "cron"
+        assert NOTIFY_DAILY_SUMMARY.kwargs == {
+            "hour": 9,
+            "minute": 30,
+            "timezone": "Europe/Moscow",
+        }
+
+    def test_persist_analyses_def(self) -> None:
+        assert PERSIST_ANALYSES.name == "persist_analyses"
+        assert PERSIST_ANALYSES.trigger == "interval"
+        assert PERSIST_ANALYSES.kwargs == {"minutes": 30, "jitter": 60}
+
+    def test_persist_alerts_def(self) -> None:
+        assert PERSIST_ALERTS.name == "persist_alerts"
+        assert PERSIST_ALERTS.trigger == "interval"
+        assert PERSIST_ALERTS.kwargs == {"minutes": 30, "jitter": 60}
+
+    def test_evaluate_forecasts_def(self) -> None:
+        assert EVALUATE_FORECASTS.name == "evaluate_forecasts"
+        assert EVALUATE_FORECASTS.trigger == "interval"
+        assert EVALUATE_FORECASTS.kwargs == {"hours": 1, "jitter": 120}
+
 
 class TestGetAllJobs:
-    def test_returns_five(self) -> None:
+    def test_returns_ten(self) -> None:
         jobs = get_all_jobs()
-        assert len(jobs) == 5
+        assert len(jobs) == 10
 
     def test_all_names_unique(self) -> None:
         jobs = get_all_jobs()
@@ -87,10 +126,10 @@ class TestGetAllJobs:
         for j in jobs:
             assert j.trigger in ("interval", "cron")
 
-    def test_interval_jobs_have_minutes(self) -> None:
+    def test_interval_jobs_have_minutes_or_hours(self) -> None:
         for j in get_all_jobs():
             if j.trigger == "interval":
-                assert "minutes" in j.kwargs
+                assert "minutes" in j.kwargs or "hours" in j.kwargs
 
     def test_cron_jobs_have_hour_minute_timezone(self) -> None:
         for j in get_all_jobs():
@@ -118,6 +157,11 @@ class TestArchitecture:
             "alert_generation": alert_generation,
             "daily_summary": daily_summary,
             "forecast_validation": forecast_validation,
+            "notify_alert_generation": notify_alert_generation,
+            "notify_daily_summary": notify_daily_summary,
+            "persist_analyses": persist_analyses,
+            "persist_alerts": persist_alerts,
+            "evaluate_forecasts": evaluate_forecasts,
         }
         for job in get_all_jobs():
             assert job.name in func_map, f"Job {job.name!r} has no matching service function"
@@ -127,6 +171,17 @@ class TestArchitecture:
         assert asyncio.iscoroutinefunction(market_refresh)
 
     def test_all_service_functions_are_async(self) -> None:
-        funcs = [market_refresh, analyze_all, alert_generation, daily_summary, forecast_validation]
+        funcs = [
+            market_refresh,
+            analyze_all,
+            alert_generation,
+            daily_summary,
+            forecast_validation,
+            notify_alert_generation,
+            notify_daily_summary,
+            persist_analyses,
+            persist_alerts,
+            evaluate_forecasts,
+        ]
         for fn in funcs:
             assert asyncio.iscoroutinefunction(fn), f"{fn.__name__} is not async"
