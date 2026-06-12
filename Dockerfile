@@ -54,4 +54,4 @@ USER appuser
 EXPOSE 8000
 
 # Default process; overridden per-service in docker-compose.yml.
-CMD ["moex-api"]
+CMD ["moex-bot"]
